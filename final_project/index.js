@@ -1,39 +1,43 @@
 const express = require('express');
+const session = require('express-session');
 const jwt = require('jsonwebtoken');
-const session = require('express-session')
 const customer_routes = require('./router/auth_users.js').authenticated;
+const { login } = require('./router/auth_users.js'); // Import login function
 const genl_routes = require('./router/general.js').general;
 
 const app = express();
 
 app.use(express.json());
 
-app.use("/customer",session({secret:"fingerprint_customer",resave: true, saveUninitialized: true}))
+// Initialize session middleware
+app.use("/customer", session({
+    secret: "fingerprint_customer",
+    resave: true,
+    saveUninitialized: true
+}));
 
-app.use("/customer/auth/*", function auth(req,res,next){
-// Get the JWT token from the request header or query parameter
-    const token = req.headers.authorization; // Assuming token is passed in the Authorization header
-    
-    // Check if token is provided
+// Mount customer login route
+app.post("/customer/login", login);
+
+// Middleware for authentication for routes under "/customer/auth/*"
+app.use("/customer/auth/*", function auth(req, res, next) {
+    const token = req.headers.authorization?.split(" ")[1] || req.session.accessToken;
+
     if (!token) {
         return res.status(401).json({ message: "Unauthorized: Token is missing" });
     }
 
     try {
-        // Verify the token
-        const decoded = jwt.verify(token, "your_secret_key"); // Replace "your_secret_key" with your actual secret key
-
-        // Token is valid, proceed to the next middleware or route handler
+        const decoded = jwt.verify(token, "your_strong_secret_key");
+        req.user = decoded;
         next();
     } catch (error) {
-        // Token is invalid or expired
-        return res.status(401).json({ message: "Unauthorized: Invalid token" });
+        return res.status(401).json({ message: "Unauthorized: Invalid or expired token" });
     }
 });
- 
-const PORT =5000;
 
+// Mount other routes
 app.use("/customer", customer_routes);
 app.use("/", genl_routes);
 
-app.listen(PORT,()=>console.log("Server is running"));
+app.listen(5000, () => console.log("Server is running on port 5000"));

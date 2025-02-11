@@ -1,30 +1,41 @@
-const express = require('express');
 const jwt = require('jsonwebtoken');
-let books = require("./booksdb.js");
-const regd_users = express.Router();
+let users = {}; // Ensure this is globally accessible
+const secretKey = "your_strong_secret_key"; // Use a strong secret key
 
-let users = [];
+// Function to authenticate a user
+function authenticateUser(username, password) {
+    console.log("Users in memory before login:", users); // Debugging
 
-const isValid = (username)=>{ //returns boolean
-//write code to check is the username is valid
+    // Ensure username exists and password matches
+    if (users[username] && users[username].password === password) {
+        console.log("Login successful for:", username); // Debugging
+        return true;
+    } else {
+        console.log("Login failed for:", username, "with password:", password); // Debugging
+        return false;
+    }
 }
 
-const authenticatedUser = (username,password)=>{ //returns boolean
-//write code to check if username and password match the one we have in records.
+// Route for customer login
+function login(req, res) {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+    }
+
+    if (!authenticateUser(username, password)) {
+        return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ username }, secretKey, { expiresIn: "1h" });
+
+    // Store token in session
+    req.session.accessToken = token;
+
+    return res.status(200).json({ message: "Login successful!", token });
 }
 
-//only registered users can login
-regd_users.post("/login", (req,res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
-});
-
-// Add a book review
-regd_users.put("/auth/review/:isbn", (req, res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
-});
-
-module.exports.authenticated = regd_users;
-module.exports.isValid = isValid;
-module.exports.users = users;
+// Export users and authentication route
+module.exports = { users, login };
